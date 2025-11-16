@@ -5,9 +5,12 @@ const App = () => {
   const [Details, SetDetails] = useState("");
   const [Notes, SetNotes] = useState([]);
 
+  // API base URL - use environment variable or fallback to localhost for development
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
   // Load notes from backend
   useEffect(() => {
-    fetch("http://localhost:5000/notes")
+    fetch(`${API_URL}/notes`)
       .then((res) => {
         if (!res.ok) {
           return res.json().then((errorData) => {
@@ -52,7 +55,7 @@ const App = () => {
     try {
       console.log("Sending request to backend...");
       // Send note to backend
-      const response = await fetch("http://localhost:5000/addnote", {
+      const response = await fetch(`${API_URL}/addnote`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -101,7 +104,7 @@ const App = () => {
 
     try {
       console.log("Deleting note:", noteId);
-      const response = await fetch(`http://localhost:5000/notes/${noteId}`, {
+      const response = await fetch(`${API_URL}/notes/${noteId}`, {
         method: "DELETE",
       });
 
