@@ -5,16 +5,12 @@ const App = () => {
   const [Details, SetDetails] = useState("");
   const [Notes, SetNotes] = useState([]);
 
-  // API base URL - use relative path for Vercel deployment, or localhost for development
-  // In production (Vercel), API routes are at /api/*
-  // In development, use localhost backend
-  const API_URL = import.meta.env.DEV 
-    ? "http://localhost:5000" 
-    : "/api";
+  // API base URL - use environment variable or fallback to localhost for development
+const API_URL = import.meta.env.VITE_API_URL || "/api";
   
   // Debug: Log the API URL being used (remove in production if needed)
   console.log("API URL:", API_URL);
-  console.log("Environment:", import.meta.env.DEV ? "Development" : "Production");
+  console.log("Environment variable:", import.meta.env.VITE_API_URL);
 
   // Load notes from backend
   useEffect(() => {

@@ -4,7 +4,28 @@ const cors = require("cors");
 require("dotenv").config();
 
 const app = express();
-app.use(cors());
+
+// CORS configuration - allow requests from Vercel and localhost
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://notes-hub-mu.vercel.app',
+  process.env.FRONTEND_URL // Allow custom frontend URL from environment
+].filter(Boolean); // Remove any undefined values
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all for now - restrict in production if needed
+    }
+  },
+  credentials: true
+}));
+
 app.use(express.json());
 
 // MongoDB Atlas Connection
@@ -113,11 +134,17 @@ app.delete("/notes/:id", async (req, res) => {
   }
 });
 
-// SERVER START
-app.listen(5000, () => {
-  console.log("═══════════════════════════════════════");
-  console.log("🚀 Server running on port 5000");
-  console.log("📍 Health check: http://localhost:5000/");
-  console.log("📍 API endpoint: http://localhost:5000/notes");
-  console.log("═══════════════════════════════════════");
-});
+// Export for Vercel serverless functions
+module.exports = (req, res) => app(req, res);
+
+// SERVER START (for local development)
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log("═══════════════════════════════════════");
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📍 Health check: http://localhost:${PORT}/`);
+    console.log(`📍 API endpoint: http://localhost:${PORT}/notes`);
+    console.log("═══════════════════════════════════════");
+  });
+}
