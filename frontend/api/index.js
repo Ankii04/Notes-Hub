@@ -1,7 +1,9 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-require("dotenv").config();
+import express from "express";
+import mongoose from "mongoose";
+import cors from "cors";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const app = express();
 const router = express.Router();
@@ -10,14 +12,27 @@ const router = express.Router();
 app.use(cors({ origin: "*", credentials: true }));
 app.use(express.json());
 
-// MongoDB Connection
-mongoose
-  .connect(process.env.MONGODB_URI, {
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-  })
-  .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.error("MongoDB Error", err.message));
+// MongoDB Connection (Cached for Serverless)
+let isConnected = false; // Track connection status
+
+const connectDB = async () => {
+  if (isConnected) {
+    console.log("Using existing MongoDB connection");
+    return;
+  }
+
+  try {
+    const db = await mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
+    isConnected = db.connections[0].readyState;
+    console.log("MongoDB Connected");
+  } catch (err) {
+    console.error("MongoDB Error", err.message);
+    throw err; // Re-throw to be handled by the route
+  }
+};
 
 // Schema
 const NoteSchema = new mongoose.Schema({
@@ -26,18 +41,20 @@ const NoteSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
-const Note = mongoose.model("Note", NoteSchema);
+const Note = mongoose.models.Note || mongoose.model("Note", NoteSchema);
 
 // Routes
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
+  await connectDB();
   res.json({
     status: "API working",
-    mongodb: mongoose.connection.readyState === 1 ? "Connected" : "Not connected",
+    mongodb: isConnected === 1 ? "Connected" : "Not connected",
   });
 });
 
 router.post("/addnote", async (req, res) => {
   try {
+    await connectDB();
     const { title, details } = req.body;
     const newNote = new Note({ title, details });
     await newNote.save();
@@ -49,6 +66,7 @@ router.post("/addnote", async (req, res) => {
 
 router.get("/notes", async (req, res) => {
   try {
+    await connectDB();
     const notes = await Note.find().sort({ createdAt: -1 });
     res.json(notes);
   } catch (err) {
@@ -58,6 +76,7 @@ router.get("/notes", async (req, res) => {
 
 router.delete("/notes/:id", async (req, res) => {
   try {
+    await connectDB();
     const deletedNote = await Note.findByIdAndDelete(req.params.id);
     res.json({ msg: "Deleted", deletedNote });
   } catch (err) {
@@ -68,10 +87,9 @@ router.delete("/notes/:id", async (req, res) => {
 // Mount Router
 app.use("/api", router);
 
-// Fallback for root path (if accessed directly or via rewrite edge cases)
+// Fallback for root path
 app.get("/", (req, res) => {
   res.json({ status: "API Root" });
 });
 
-// Required for Vercel Serverless Functions
-module.exports = (req, res) => app(req, res);
+export default app;
