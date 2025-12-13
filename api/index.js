@@ -4,6 +4,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 const app = express();
+const router = express.Router();
 
 // CORS
 app.use(cors({ origin: "*", credentials: true }));
@@ -28,14 +29,14 @@ const NoteSchema = new mongoose.Schema({
 const Note = mongoose.model("Note", NoteSchema);
 
 // Routes
-app.get("/", (req, res) => {
+router.get("/", (req, res) => {
   res.json({
     status: "API working",
     mongodb: mongoose.connection.readyState === 1 ? "Connected" : "Not connected",
   });
 });
 
-app.post("/addnote", async (req, res) => {
+router.post("/addnote", async (req, res) => {
   try {
     const { title, details } = req.body;
     const newNote = new Note({ title, details });
@@ -46,7 +47,7 @@ app.post("/addnote", async (req, res) => {
   }
 });
 
-app.get("/notes", async (req, res) => {
+router.get("/notes", async (req, res) => {
   try {
     const notes = await Note.find().sort({ createdAt: -1 });
     res.json(notes);
@@ -55,13 +56,21 @@ app.get("/notes", async (req, res) => {
   }
 });
 
-app.delete("/notes/:id", async (req, res) => {
+router.delete("/notes/:id", async (req, res) => {
   try {
     const deletedNote = await Note.findByIdAndDelete(req.params.id);
     res.json({ msg: "Deleted", deletedNote });
   } catch (err) {
     res.status(500).json({ msg: "Error", error: err.message });
   }
+});
+
+// Mount Router
+app.use("/api", router);
+
+// Fallback for root path (if accessed directly or via rewrite edge cases)
+app.get("/", (req, res) => {
+  res.json({ status: "API Root" });
 });
 
 // Required for Vercel Serverless Functions
